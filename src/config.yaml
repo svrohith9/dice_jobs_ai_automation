@@ -1,0 +1,12 @@
+# config.yaml
+credentials:
+  username: "email"
+  password: "yourpwd"
+
+search_params:
+  keyword: "Java"
+  location: "United States"
+  days_posted: 3
+
+# openai:
+#   api_key: "your_openai_api_key"
