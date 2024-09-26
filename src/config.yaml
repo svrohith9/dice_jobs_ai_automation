@@ -8,5 +8,5 @@ search_params:
   location: "United States"
   days_posted: 3
 
-# openai:
-#   api_key: "your_openai_api_key"
+openai:
+  api_key: "your_openai_api_key"
