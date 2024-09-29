@@ -85,20 +85,38 @@ def is_easy_apply_available(driver):
         return False
 
 def navigate_form_and_submit(driver):
-    """Navigate through the form pages by clicking 'Next' until reaching 'Submit'."""
+    """Navigate through the form pages by filling textareas with 'NA' and clicking 'Next' until reaching 'Submit'."""
     try:
         while True:
             try:
+                # Fill all textarea elements with "NA" before proceeding
+                textareas = driver.find_elements(By.TAG_NAME, "textarea")
+                if textareas:
+                    logging.info(f"Found {len(textareas)} textarea(s). Filling them with 'NA'.")
+                    for textarea in textareas:
+                        try:
+                            # Clear any existing text and input "NA"
+                            textarea.clear()
+                            textarea.send_keys("NA")
+                            logging.debug("Filled a textarea with 'NA'.")
+                        except Exception as e:
+                            logging.warning(f"Could not fill a textarea: {e}")
+                else:
+                    logging.info("No textarea elements found on this page.")
+
                 # Dynamically wait for the "Next" button and click if found
                 next_button = WebDriverWait(driver, 5, poll_frequency=0.1).until(
-                    EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Next')] | //button[contains(text(), 'Next')] | //button[contains(text(), 'Continue')]"))
+                    EC.element_to_be_clickable((
+                        By.XPATH,
+                        "//span[contains(text(), 'Next')] | //button[contains(text(), 'Next')] | //button[contains(text(), 'Continue')]"
+                    ))
                 )
                 next_button.click()
                 logging.info("Clicked 'Next' button to continue to the next form step.")
-                time.sleep(1)
+                time.sleep(1)  # Short delay to allow the next form step to load
 
             except TimeoutException:
-                logging.info("No 'Next' button found. Checking for 'Submit' or 'Finish' button.")
+                logging.info("No 'Next' button found. Checking for 'Submit' button.")
 
                 # Look for "Submit" button with class 'btn-next' and text 'Submit'
                 try:
@@ -127,3 +145,10 @@ def go_to_next_page(driver):
     except NoSuchElementException:
         logging.info("No 'Next' button found or last page reached.")
         return False
+
+# Example usage:
+# from selenium import webdriver
+# driver = webdriver.Chrome()
+# search_jobs(driver, "Software Engineer", "New York")
+# apply_to_jobs(driver)
+# driver.quit()
