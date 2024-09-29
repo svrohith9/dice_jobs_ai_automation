@@ -2,3 +2,4 @@
 selenium
 openai
 pyyaml
+webdriver-manager
