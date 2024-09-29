@@ -1,0 +1,160 @@
+personal_information:
+  name: "John"
+  surname: "Doe"
+  date_of_birth: "01/01/1990"
+  country: "USA"
+  city: "New York, NY, United States"
+  address: "123 Main Street"
+  phone_prefix: "+1"
+  phone: "5551234567"
+  email: "johndoe@example.com"
+  github: "https://github.com/johndoe"
+  linkedin: "https://www.linkedin.com/in/johndoe/"
+
+education_details:
+  - education_level: "Master's Degree"
+    institution: "Massachusetts Institute of Technology"
+    final_evaluation_grade: "4.0/4.0"
+    start_date: "2014"
+    year_of_completion: "2016"
+    field_of_study: "Computer Science"
+    exam:
+
+  - education_level: "Bachelor's Degree"
+    institution: "University of California, Berkeley"
+    final_evaluation_grade: "3.8/4.0"
+    start_date: "2010"
+    year_of_completion: "2014"
+    field_of_study: "Electrical Engineering and Computer Sciences"
+    exam:
+
+experience_details:
+  - position: "Senior Software Engineer"
+    company: "TechCorp Solutions"
+    employment_period: "08/2016 - Present"
+    location: "San Francisco"
+    industry: "Information Technology"
+    key_responsibilities:
+      - responsibility_1: "Led the development of scalable microservices architecture using Java Spring Boot, enhancing application performance by 50%."
+      - responsibility_2: "Implemented RESTful APIs for client-facing applications, facilitating seamless integration with third-party services."
+      - responsibility_3: "Developed responsive front-end interfaces using React.js and Redux, improving user engagement by 25%."
+      - responsibility_4: "Integrated OAuth 2.0 and JWT authentication mechanisms to secure APIs and user data."
+      - responsibility_5: "Managed continuous integration and deployment pipelines using Jenkins and Docker, reducing deployment time by 40%."
+      - responsibility_6: "Optimized database queries and data processing workflows, resulting in a 30% reduction in data retrieval times."
+      - responsibility_7: "Collaborated with cross-functional teams to align technical solutions with business goals."
+      - responsibility_8: "Mentored junior developers, fostering a culture of continuous learning and improvement."
+    skills_acquired:
+      - "Microservices architecture"
+      - "API development"
+      - "Front-end development"
+      - "Security implementation"
+      - "CI/CD pipelines"
+      - "Database optimization"
+      - "Team leadership"
+      - "React.js"
+      - "Redux"
+      - "Spring Boot"
+      - "OAuth 2.0"
+      - "JWT"
+      - "Jenkins"
+      - "Docker"
+
+  - position: "Software Engineer"
+    company: "Innovatech LLC"
+    employment_period: "06/2014 - 07/2016"
+    location: "Los Angeles"
+    industry: "Technology"
+    key_responsibilities:
+      - responsibility_1: "Developed and maintained Java-based applications, adhering to best practices in software design patterns."
+      - responsibility_2: "Wrote unit and integration tests using JUnit and Mockito to ensure code quality and reliability."
+      - responsibility_3: "Implemented message queuing systems using Apache Kafka for real-time data processing."
+      - responsibility_4: "Optimized SQL queries and database schemas for improved application performance."
+      - responsibility_5: "Collaborated with the QA team to resolve defects and improve application stability."
+      - responsibility_6: "Participated in code reviews and provided constructive feedback to peers."
+      - responsibility_7: "Contributed to the migration of legacy systems to modern architectures."
+      - responsibility_8: "Documented technical specifications and user guides."
+    skills_acquired:
+      - "Java development"
+      - "Testing and quality assurance"
+      - "Design patterns"
+      - "Message queuing"
+      - "Database management"
+      - "Team collaboration"
+      - "Code optimization"
+      - "Apache Kafka"
+      - "SQL"
+      - "JUnit"
+      - "Mockito"
+
+projects:
+  - name: "fast-read-app"
+    description: "A web application designed to improve users' reading speed and comprehension using techniques like RSVP. Built with React.js on the frontend and Node.js on the backend. Features include adjustable reading speeds, progress tracking, and user customization."
+    link: "https://github.com/johndoe/fast-read-app"
+
+  - name: "real-time-chat-app"
+    description: "A scalable chat application enabling real-time communication between users. Implemented using WebSocket technology for instant messaging, with a Node.js backend and React.js frontend. Includes features like group chats, user presence indicators, and message history."
+    link: "https://github.com/johndoe/real-time-chat-app"
+
+  - name: "interactive-quiz-app"
+    description: "An engaging quiz platform offering quizzes on various topics. Users can track their scores, compete on leaderboards, and create custom quizzes. Developed with React.js and Node.js, utilizing MongoDB for data storage."
+    link: "https://github.com/johndoe/interactive-quiz-app"
+
+  - name: "ecommerce-cart-app"
+    description: "A comprehensive e-commerce shopping cart application with features like product listings, shopping cart management, and checkout processes. Built with React.js and Redux for state management, and Node.js with Express for the backend API."
+    link: "https://github.com/johndoe/ecommerce-cart-app"
+
+achievements:
+  - name: "Employee of the Year"
+    description: "Recognized for exceptional contributions to project success and team collaboration."
+  - name: "Hackathon Winner"
+    description: "Led a team to victory in a 24-hour hackathon, developing an innovative IoT solution."
+
+certifications:
+  - name: "AWS Certified Solutions Architect – Associate"
+    description: "Demonstrated knowledge in designing and deploying scalable systems on AWS."
+  - name: "Certified Kubernetes Administrator"
+    description: "Validated expertise in managing Kubernetes clusters and container orchestration."
+
+languages:
+  - language: "English"
+    proficiency: "Native"
+  - language: "Spanish"
+    proficiency: "Professional Working Proficiency"
+
+interests:
+  - "Cloud Computing"
+  - "Machine Learning"
+  - "DevOps Practices"
+  - "Open Source Contribution"
+  - "Cybersecurity"
+
+availability:
+  notice_period: "Immediate"
+
+salary_expectations:
+  salary_range_usd: "120000"
+
+self_identification:
+  gender: "Male"
+  pronouns: "He/Him"
+  veteran: "No"
+  disability: "No"
+  ethnicity: "Hispanic or Latino"
+
+legal_authorization:
+  eu_work_authorization: "No"
+  us_work_authorization: "Yes"
+  requires_us_visa: "No"
+  requires_us_sponsorship: "No"
+  requires_eu_visa: "Yes"
+  legally_allowed_to_work_in_eu: "No"
+  legally_allowed_to_work_in_us: "Yes"
+  requires_eu_sponsorship: "Yes"
+
+work_preferences:
+  remote_work: "Yes"
+  in_person_work: "Yes"
+  open_to_relocation: "Yes"
+  willing_to_complete_assessments: "Yes"
+  willing_to_undergo_drug_tests: "Yes"
+  willing_to_undergo_background_checks: "Yes"

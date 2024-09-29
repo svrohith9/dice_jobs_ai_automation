@@ -1,12 +1,22 @@
+# src/job_search.py
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
 import logging
+from ai_helper import get_openai_response  # Import the AI response function
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("application.log"),
+        logging.StreamHandler()
+    ]
+)
 
 def wait_for_element(driver, by, value, timeout=10, poll_frequency=0.1):
     """Utility function to wait for an element to be present."""
@@ -26,9 +36,9 @@ def search_jobs(driver, keyword, location):
     url = f"https://www.dice.com/jobs?q={keyword}&location={location}&radius=30&radiusUnit=mi&page=1&pageSize=20&filters.postedDate=THREE&filters.easyApply=true&language=en"
     logging.info(f"Navigating to URL: {url}")
     driver.get(url)
-    wait_for_element(driver, By.CSS_SELECTOR, "a.card-title-link", timeout=5)  # Wait for jobs to load
+    wait_for_element(driver, By.CSS_SELECTOR, "a.card-title-link", timeout=10)  # Wait for jobs to load
 
-def apply_to_jobs(driver):
+def apply_to_jobs(driver, data):
     """Apply to jobs on the current page and handle pagination."""
     while True:
         jobs = driver.find_elements(By.CSS_SELECTOR, "a.card-title-link")
@@ -38,7 +48,7 @@ def apply_to_jobs(driver):
             try:
                 job.click()
                 time.sleep(2)  # Short delay to allow the page to load
-                
+
                 # Switch to the newly opened job window
                 driver.switch_to.window(driver.window_handles[-1])
 
@@ -46,21 +56,21 @@ def apply_to_jobs(driver):
                 if is_easy_apply_available(driver):
                     # Click the "Easy Apply" button
                     logging.info("Waiting for 'Easy Apply' button.")
-                    apply_button = WebDriverWait(driver, 5).until(
+                    apply_button = WebDriverWait(driver, 10).until(
                         EC.element_to_be_clickable((By.CSS_SELECTOR, "apply-button-wc"))
                     )
                     apply_button.click()
                     logging.info("Clicked 'Easy Apply' button.")
-                    time.sleep(1)  # Short sleep to ensure click is registered
+                    time.sleep(2)  # Short sleep to ensure click is registered
 
                     # Navigate through the form and submit the application
-                    navigate_form_and_submit(driver)
+                    navigate_form_and_submit(driver, data)
                 else:
                     logging.info("Job already applied or 'Easy Apply' not available. Skipping this job.")
 
             except Exception as e:
                 logging.error(f"Error applying to job: {e}")
-            
+
             finally:
                 # Close the job tab and switch back to the job list (main window)
                 if len(driver.window_handles) > 1:
@@ -82,73 +92,102 @@ def is_easy_apply_available(driver):
             return True
     except NoSuchElementException:
         logging.info("'Easy Apply' button not found. Job likely already applied.")
-        return False
+    return False
 
-def navigate_form_and_submit(driver):
-    """Navigate through the form pages by filling textareas with 'NA' and clicking 'Next' until reaching 'Submit'."""
+def navigate_form_and_submit(driver, data):
+    """Navigate through the form pages by filling textareas with AI-generated answers based on the corresponding questions."""
     try:
         while True:
             try:
-                # Fill all textarea elements with "NA" before proceeding
+                # Find all textarea elements on the current page
                 textareas = driver.find_elements(By.TAG_NAME, "textarea")
                 if textareas:
-                    logging.info(f"Found {len(textareas)} textarea(s). Filling them with 'NA'.")
+                    logging.info(f"Found {len(textareas)} textarea(s). Processing each one.")
                     for textarea in textareas:
                         try:
-                            # Clear any existing text and input "NA"
+                            # Get the 'id' of the textarea to find its corresponding label
+                            textarea_id = textarea.get_attribute("id")
+                            if not textarea_id:
+                                logging.warning("Textarea without 'id' attribute found. Skipping.")
+                                continue
+
+                            # Find the label associated with this textarea using the 'for' attribute
+                            label = driver.find_element(By.XPATH, f"//label[@for='{textarea_id}']")
+
+                            # Extract the question text from the label's <seds-paragraph> tag
+                            try:
+                                question_element = label.find_element(By.TAG_NAME, "seds-paragraph")
+                                question_text = question_element.text.strip()
+                            except NoSuchElementException:
+                                # Fallback to label text if <seds-paragraph> is not found
+                                question_text = label.text.strip()
+                                logging.warning(f"<seds-paragraph> not found for textarea '{textarea_id}'. Using label text.")
+
+                            logging.info(f"Question found: '{question_text}'")
+
+                            # Generate response using OpenAI's API
+                            answer = get_openai_response(question_text, data)
+                            logging.info(f"Generated answer: '{answer}'")
+
+                            # Clear existing text and input the generated answer
                             textarea.clear()
-                            textarea.send_keys("NA")
-                            logging.debug("Filled a textarea with 'NA'.")
+                            textarea.send_keys(answer)
+                            logging.debug(f"Filled textarea '{textarea_id}' with answer.")
+
+                        except NoSuchElementException:
+                            logging.warning(f"No label found for textarea with id '{textarea_id}'. Skipping.")
                         except Exception as e:
-                            logging.warning(f"Could not fill a textarea: {e}")
+                            logging.error(f"Error processing textarea with id '{textarea_id}': {e}")
                 else:
                     logging.info("No textarea elements found on this page.")
 
                 # Dynamically wait for the "Next" button and click if found
-                next_button = WebDriverWait(driver, 5, poll_frequency=0.1).until(
-                    EC.element_to_be_clickable((
-                        By.XPATH,
-                        "//span[contains(text(), 'Next')] | //button[contains(text(), 'Next')] | //button[contains(text(), 'Continue')]"
-                    ))
-                )
-                next_button.click()
-                logging.info("Clicked 'Next' button to continue to the next form step.")
-                time.sleep(1)  # Short delay to allow the next form step to load
-
-            except TimeoutException:
-                logging.info("No 'Next' button found. Checking for 'Submit' button.")
-
-                # Look for "Submit" button with class 'btn-next' and text 'Submit'
                 try:
-                    submit_button = WebDriverWait(driver, 5, poll_frequency=0.1).until(
+                    next_button = WebDriverWait(driver, 10, poll_frequency=0.1).until(
+                        EC.element_to_be_clickable((
+                            By.XPATH,
+                            "//span[contains(text(), 'Next')] | //button[contains(text(), 'Next')] | //button[contains(text(), 'Continue')]"
+                        ))
+                    )
+                    next_button.click()
+                    logging.info("Clicked 'Next' button to continue to the next form step.")
+                    time.sleep(2)  # Short delay to allow the next form step to load
+                except TimeoutException:
+                    logging.info("No 'Next' button found. Checking for 'Submit' button.")
+
+                    # Look for "Submit" button and click it
+                    try:
+                        submit_button = WebDriverWait(driver, 10, poll_frequency=0.1).until(
                         EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'btn-next') and .//span[contains(text(), 'Submit')]]"))
                     )
-                    submit_button.click()
-                    logging.info("Application submitted successfully.")
-                    break  # Exit loop after application is submitted
+                        submit_button.click()
+                        logging.info("Application submitted successfully.")
+                        break  # Exit loop after application is submitted
 
-                except TimeoutException:
-                    logging.error("Could not find 'Submit' button. Exiting form process.")
-                    break
+                    except TimeoutException:
+                        logging.error("Could not find 'Submit' button. Exiting form process.")
+                        break
+
+            except Exception as e:
+                logging.error(f"Error navigating form or submitting the application: {e}")
+                break
 
     except Exception as e:
-        logging.error(f"Error navigating form or submitting the application: {e}")
+        logging.error(f"Unexpected error during form navigation: {e}")
 
 def go_to_next_page(driver):
     """Navigate to the next page of job listings if available."""
     try:
         next_button = driver.find_element(By.XPATH, "//li[contains(@class, 'pagination-next') and not(contains(@class, 'disabled'))]//a")
         next_button.click()
-        time.sleep(2)  # Allow the next page to load
+        time.sleep(3)  # Allow the next page to load
         logging.info("Moved to the next page.")
         return True
     except NoSuchElementException:
         logging.info("No 'Next' button found or last page reached.")
-        return False
+    except Exception as e:
+        logging.error(f"Error navigating to the next page: {e}")
+    return False
 
-# Example usage:
-# from selenium import webdriver
-# driver = webdriver.Chrome()
-# search_jobs(driver, "Software Engineer", "New York")
-# apply_to_jobs(driver)
-# driver.quit()
+# Note: Ensure that 'ai_helper.py' is correctly implemented and accessible.
+# The 'get_openai_response' function should handle the OpenAI API calls and return appropriate answers.

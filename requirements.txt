@@ -1,5 +1,5 @@
 # requirements.txt
 selenium
-openai
+openai==0.28
 pyyaml
 webdriver-manager
