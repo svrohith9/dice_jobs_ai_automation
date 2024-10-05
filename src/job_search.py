@@ -95,7 +95,7 @@ def is_easy_apply_available(driver):
     return False
 
 def navigate_form_and_submit(driver, data):
-    """Navigate through the form pages by filling textareas with AI-generated answers based on the corresponding questions."""
+    """Navigate through the form pages by filling textareas and choosing options using AI-generated answers based on the corresponding questions."""
     try:
         while True:
             try:
@@ -105,65 +105,79 @@ def navigate_form_and_submit(driver, data):
                     logging.info(f"Found {len(textareas)} textarea(s). Processing each one.")
                     for textarea in textareas:
                         try:
-                            # Get the 'id' of the textarea to find its corresponding label
                             textarea_id = textarea.get_attribute("id")
                             if not textarea_id:
-                                logging.warning("Textarea without 'id' attribute found. Skipping.")
                                 continue
 
-                            # Find the label associated with this textarea using the 'for' attribute
                             label = driver.find_element(By.XPATH, f"//label[@for='{textarea_id}']")
-
-                            # Extract the question text from the label's <seds-paragraph> tag
-                            try:
-                                question_element = label.find_element(By.TAG_NAME, "seds-paragraph")
-                                question_text = question_element.text.strip()
-                            except NoSuchElementException:
-                                # Fallback to label text if <seds-paragraph> is not found
-                                question_text = label.text.strip()
-                                logging.warning(f"<seds-paragraph> not found for textarea '{textarea_id}'. Using label text.")
+                            question_text = label.text.strip()
 
                             logging.info(f"Question found: '{question_text}'")
-
-                            # Generate response using OpenAI's API
                             answer = get_openai_response(question_text, data)
-                            logging.info(f"Generated answer: '{answer}'")
-
-                            # Clear existing text and input the generated answer
                             textarea.clear()
                             textarea.send_keys(answer)
-                            logging.debug(f"Filled textarea '{textarea_id}' with answer.")
 
                         except NoSuchElementException:
-                            logging.warning(f"No label found for textarea with id '{textarea_id}'. Skipping.")
+                            continue
                         except Exception as e:
-                            logging.error(f"Error processing textarea with id '{textarea_id}': {e}")
+                            logging.error(f"Error processing textarea: {e}")
                 else:
                     logging.info("No textarea elements found on this page.")
 
-                # Dynamically wait for the "Next" button and click if found
+                # Process radio button groups
+                radio_groups = driver.find_elements(By.CLASS_NAME, "radio-input-wrapper")
+                if radio_groups:
+                    logging.info(f"Found {len(radio_groups)} radio group(s). Processing each one.")
+                    for group in radio_groups:
+                        try:
+                            # Extract the question text and the options
+                            question_element = group.find_element(By.TAG_NAME, "seds-paragraph")
+                            question_text = question_element.text.strip()
+                            logging.info(f"Radio button question found: '{question_text}'")
+
+                            radio_options = group.find_elements(By.TAG_NAME, "label")
+                            options = [option.text.strip() for option in radio_options]
+
+                            # Send question and options to OpenAI for selecting the best choice
+                            ai_response = get_openai_response(question_text, data, options)
+                            logging.info(f"AI suggests selecting: '{ai_response}'")
+
+                            # Select the matching radio button
+                            for option in radio_options:
+                                option_text = option.text.strip()
+                                if ai_response.lower() in option_text.lower():
+                                    radio_input = option.find_element(By.TAG_NAME, "input")
+                                    radio_input.click()
+                                    logging.info(f"Selected radio option: '{option_text}'")
+                                    break
+
+                        except NoSuchElementException:
+                            continue
+                        except Exception as e:
+                            logging.error(f"Error processing radio group: {e}")
+                else:
+                    logging.info("No radio button groups found on this page.")
+
+                # Click "Next" or "Submit" buttons
                 try:
-                    next_button = WebDriverWait(driver, 10, poll_frequency=0.1).until(
+                    next_button = WebDriverWait(driver, 10).until(
                         EC.element_to_be_clickable((
-                            By.XPATH,
+                            By.XPATH, 
                             "//span[contains(text(), 'Next')] | //button[contains(text(), 'Next')] | //button[contains(text(), 'Continue')]"
                         ))
                     )
                     next_button.click()
-                    logging.info("Clicked 'Next' button to continue to the next form step.")
-                    time.sleep(2)  # Short delay to allow the next form step to load
+                    time.sleep(2)
                 except TimeoutException:
-                    logging.info("No 'Next' button found. Checking for 'Submit' button.")
-
-                    # Look for "Submit" button and click it
                     try:
-                        submit_button = WebDriverWait(driver, 10, poll_frequency=0.1).until(
-                        EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'btn-next') and .//span[contains(text(), 'Submit')]]"))
-                    )
+                        submit_button = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((
+                                By.XPATH, "//button[contains(@class, 'btn-next') and .//span[contains(text(), 'Submit')]]"
+                            ))
+                        )
                         submit_button.click()
                         logging.info("Application submitted successfully.")
-                        break  # Exit loop after application is submitted
-
+                        break
                     except TimeoutException:
                         logging.error("Could not find 'Submit' button. Exiting form process.")
                         break
@@ -174,7 +188,6 @@ def navigate_form_and_submit(driver, data):
 
     except Exception as e:
         logging.error(f"Unexpected error during form navigation: {e}")
-
 def go_to_next_page(driver):
     """Navigate to the next page of job listings if available."""
     try:
@@ -188,6 +201,3 @@ def go_to_next_page(driver):
     except Exception as e:
         logging.error(f"Error navigating to the next page: {e}")
     return False
-
-# Note: Ensure that 'ai_helper.py' is correctly implemented and accessible.
-# The 'get_openai_response' function should handle the OpenAI API calls and return appropriate answers.

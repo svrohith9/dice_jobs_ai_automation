@@ -77,24 +77,40 @@ def load_data(data_path="src/data.yaml"):
         logging.error(f"Error parsing {data_path}: {exc}")
         return {}
 
-def get_openai_response(question, data, retries=3, delay=5):
+def get_openai_response(question, data, options=None, retries=3, delay=5):
     """
     Generate a response for a given question using OpenAI's API and the provided data.
+    Handles both textual answers and selection-based answers like radio buttons.
 
     :param question: The question extracted from the form's label.
     :param data: The parsed YAML data as a dictionary.
+    :param options: The list of radio button options (if applicable).
     :param retries: Number of retry attempts.
     :param delay: Delay between retries in seconds.
-    :return: The generated response string.
+    :return: The generated response string (text answer or selected option).
     """
-    # Convert data to a JSON string for better formatting in the prompt
     data_json = json.dumps(data, indent=2)
-  
 
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant that generates answers for job application questions based on the user's personal data."},
-        {"role": "user", "content": f"""
-You are an assistant that helps fill out job application forms based on provided personal data.
+    # If options are provided, include them in the prompt for OpenAI
+    if options:
+        options_text = "\n".join([f"- {option}" for option in options])
+        prompt = f"""
+You are an assistant that helps fill out job application forms based on the user's personal data.
+
+Personal data:
+{data_json}
+
+Question:
+"{question}"
+
+Here are the possible options:
+{options_text}
+
+Choose the most appropriate option based on the user's personal data and return only the chosen option.
+"""
+    else:
+        prompt = f"""
+You are an assistant that helps fill out job application forms based on the user's personal data.
 
 Personal data:
 {data_json}
@@ -103,7 +119,11 @@ Question:
 "{question}"
 
 Provide a concise and appropriate answer based on the personal data.
-"""}
+"""
+
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant that generates answers for job application questions based on the user's personal data."},
+        {"role": "user", "content": prompt}
     ]
 
     for attempt in range(1, retries + 1):
@@ -126,4 +146,4 @@ Provide a concise and appropriate answer based on the personal data.
                 time.sleep(delay)
             else:
                 logging.error("All retry attempts failed. Using 'NA' as fallback.")
-                return "NA"  # Fallback answer in case of error
+                return "NA"
