@@ -1,0 +1,15 @@
+# config.yaml.example
+# Copy this file to src/config.yaml and fill in real values.
+# src/config.yaml is gitignored so your credentials never get committed.
+
+credentials:
+  username: "your-dice-email@example.com"
+  password: "your-dice-password"
+
+search_params:
+  keyword: "Java"
+  location: "United States"
+  days_posted: 3
+
+openai:
+  api_key: "sk-..."

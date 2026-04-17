@@ -40,7 +40,13 @@ No manual ChromeDriver install required — `webdriver-manager` fetches the righ
 
 ## Configure
 
-Edit `src/config.yaml` with your credentials, search parameters, and OpenAI key:
+Copy the template and fill in your real values:
+
+```bash
+cp src/config.yaml.example src/config.yaml
+```
+
+Then edit `src/config.yaml`:
 
 ```yaml
 credentials:
@@ -56,7 +62,7 @@ openai:
   api_key: "sk-..."
 ```
 
-> **Security note:** Keep `config.yaml` out of version control. The repo has it committed as a template — rename the real one to `config.local.yaml` and add that to `.gitignore`, or swap to environment variables before running seriously.
+> **Security:** `src/config.yaml` is gitignored — your real credentials won't be committed. Only the placeholder template (`src/config.yaml.example`) is tracked.
 
 ## Run
 
@@ -73,14 +79,14 @@ src/
 ├── app.py           # Main orchestrator — search, iterate, apply
 ├── login.py         # Dice login flow
 ├── job_search.py    # Search and pagination
-├── ai_helper.py     # OpenAI wrapper for dynamic form answers
-├── config.yaml      # Credentials, search params, OpenAI key
-└── data.yaml        # Profile data used to fill standard fields
+├── ai_helper.py           # OpenAI wrapper for dynamic form answers
+├── config.yaml.example    # Committed template — copy to config.yaml
+├── config.yaml            # Your real credentials (gitignored)
+└── data.yaml              # Profile data used to fill standard fields
 ```
 
 ## Roadmap
 
-- [ ] Move credentials and API keys to `.env` instead of committed YAML
 - [ ] Headless-mode toggle
 - [ ] Bump `openai` to v1.x with the new client API
 - [ ] Per-job cover letter generation
