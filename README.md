@@ -1,104 +1,97 @@
-# Dice Job Application Automation
+# Dice Jobs AI Automation
 
-This is an automated script that applies for jobs on Dice.com using Selenium WebDriver. The script searches for jobs based on keywords and location, navigates to the job posting, clicks on the "Easy Apply" button, and automatically fills and submits job applications.
+A Selenium + OpenAI-powered Python bot that auto-applies to jobs on [Dice.com](https://www.dice.com) matching your keywords and location. Uses an LLM to answer the dynamic free-text questions that Dice sprinkles into application forms, and skips roles you've already applied to.
 
-## Features
+> **Disclaimer:** Dice's Terms of Service prohibit automated activity; running this against a live account carries account-suspension risk. This project is intended for learning browser-automation and LLM-integration patterns.
 
-- Automates job applications on Dice.com
-- Uses Selenium to navigate job listings and fill application forms
-- Skips already applied jobs
-- Handles multiple pages of forms by clicking "Next" until the "Submit" button is reached
+## What it does
 
-## Prerequisites
+1. Logs into Dice with credentials from `src/config.yaml`
+2. Searches for roles by keyword, location, and how recently they were posted
+3. Iterates job cards and clicks **Easy Apply** where available
+4. Fills standard fields from your saved profile data
+5. For dynamic free-text questions, asks OpenAI to draft an answer based on your profile
+6. Clicks through **Next** steps and submits
+7. Tracks applied job IDs so it never applies twice
 
-Before setting up the environment, make sure you have the following installed:
+## Stack
 
-- Python 3.8 or later
-- Google Chrome browser
-- ChromeDriver (compatible with your Chrome version)
-- Selenium WebDriver
+| Layer | Tool |
+|---|---|
+| Language | Python 3.8+ |
+| Browser automation | Selenium |
+| Driver management | `webdriver-manager` (auto-downloads matching ChromeDriver) |
+| LLM | OpenAI (default model: `openai==0.28`) |
+| Config | YAML (`src/config.yaml`) |
 
-## Setup Instructions
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/svrohith9/dice_job_application_automation.git
-cd dice-job-automation
-```
-
-### 2. Create and Activate Virtual Environment
-
-Create a virtual environment to manage dependencies:
-
-On macOS and Linux:
+## Setup
 
 ```bash
+git clone https://github.com/svrohith9/dice_jobs_ai_automation.git
+cd dice_jobs_ai_automation
+
 python3 -m venv venv
-source venv/bin/activate
-```
+source venv/bin/activate          # on Windows: venv\Scripts\activate
 
-On Windows:
-
-```bash
-python -m venv venv
-venv\Scripts\activate
-```
-
-### 3. Install Dependencies
-
-Install the required packages using `pip`:
-
-```bash
 pip install -r requirements.txt
 ```
 
-### 4. Setup ChromeDriver
+No manual ChromeDriver install required — `webdriver-manager` fetches the right version for your installed Chrome on first run.
 
-You will need to download the ChromeDriver that matches your installed version of Chrome. Download it from [here](https://sites.google.com/a/chromium.org/chromedriver/downloads).
+## Configure
 
-1. Place the ChromeDriver executable in your system's PATH or in the project directory.
-2. Ensure it's executable by running:
+Edit `src/config.yaml` with your credentials, search parameters, and OpenAI key:
 
-```bash
-chmod +x chromedriver
+```yaml
+credentials:
+  username: "you@example.com"
+  password: "your-password"
+
+search_params:
+  keyword: "Java"
+  location: "United States"
+  days_posted: 3
+
+openai:
+  api_key: "sk-..."
 ```
 
-Alternatively, specify the path to ChromeDriver in the script.
+> **Security note:** Keep `config.yaml` out of version control. The repo has it committed as a template — rename the real one to `config.local.yaml` and add that to `.gitignore`, or swap to environment variables before running seriously.
 
-### 5. Update Configurations
-
-If necessary, update the following parts of the script based on your environment:
-
-- **ChromeDriver Path**: If ChromeDriver is not in your system's PATH, specify the full path to `chromedriver` in the Selenium `driver` initialization.
-- **Search Parameters**: Customize the job search keyword and location in the script.
-
-### 6. Run the Script
-
-Once everything is set up, you can run the script:
+## Run
 
 ```bash
-python app.py
+python src/app.py
 ```
 
-The script will automatically:
-- Search for jobs on Dice.com using predefined keywords and location
-- Apply to jobs that have not yet been applied to
-- Submit applications through the form flow by clicking the "Next" and "Submit" buttons
+The script launches Chrome, signs in, and starts the apply loop. Already-applied job IDs are persisted locally so reruns continue where you left off. Logs stream to the console and to `application.log`.
 
-## Logging
+## Project structure
 
-The script provides informative logs to track progress. You can find logs output in the console.
+```
+src/
+├── app.py           # Main orchestrator — search, iterate, apply
+├── login.py         # Dice login flow
+├── job_search.py    # Search and pagination
+├── ai_helper.py     # OpenAI wrapper for dynamic form answers
+├── config.yaml      # Credentials, search params, OpenAI key
+└── data.yaml        # Profile data used to fill standard fields
+```
 
-## Notes
+## Roadmap
 
-- Ensure that your browser is updated and the version of ChromeDriver matches your installed Chrome version.
-- The script relies on page elements, so changes to the Dice.com UI may require adjustments to the script's locators (CSS selectors, XPaths).
+- [ ] Move credentials and API keys to `.env` instead of committed YAML
+- [ ] Headless-mode toggle
+- [ ] Bump `openai` to v1.x with the new client API
+- [ ] Per-job cover letter generation
+- [ ] End-of-run summary (applied / skipped / failed)
 
-## Issues
+## Troubleshooting
 
-If you run into any issues or bugs, feel free to create an issue on this repository, and I'll take a look as soon as possible!
+- **ChromeDriver version mismatch** — delete `~/.wdm` cache so `webdriver-manager` re-fetches.
+- **Dice UI changed** — this bot relies on page selectors. Expect locator updates when Dice ships a redesign.
+- **OpenAI rate limits** — lower the apply rate or switch to a cheaper model in `ai_helper.py`.
 
 ## License
 
-This project is licensed under the MIT License.
+MIT
