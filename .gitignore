@@ -160,3 +160,6 @@ mono_crash.*
 data_folder/secrets.yaml
 
 /virtual
+# Local config with real credentials (copy from src/config.yaml.example)
+src/config.yaml
+application.log
