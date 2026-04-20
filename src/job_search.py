@@ -1,203 +1,187 @@
-# src/job_search.py
+from __future__ import annotations
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-import time
 import logging
-from ai_helper import get_openai_response  # Import the AI response function
+import time
+from typing import Any
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("application.log"),
-        logging.StreamHandler()
-    ]
-)
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
-def wait_for_element(driver, by, value, timeout=10, poll_frequency=0.1):
-    """Utility function to wait for an element to be present."""
-    return WebDriverWait(driver, timeout, poll_frequency=poll_frequency).until(
+from src.ai_helper import get_openai_response
+from src.logging_setup import configure_logging
+
+configure_logging()
+log = logging.getLogger(__name__)
+
+
+def _wait(driver: WebDriver, by: str, value: str, *, timeout: int = 10):
+    return WebDriverWait(driver, timeout, poll_frequency=0.1).until(
         EC.presence_of_element_located((by, value))
     )
 
-def click_element(driver, by, value, timeout=10, poll_frequency=0.1):
-    """Utility function to click on an element."""
-    element = WebDriverWait(driver, timeout, poll_frequency=poll_frequency).until(
+
+def _click(driver: WebDriver, by: str, value: str, *, timeout: int = 10) -> None:
+    element = WebDriverWait(driver, timeout, poll_frequency=0.1).until(
         EC.element_to_be_clickable((by, value))
     )
     element.click()
 
-def search_jobs(driver, keyword, location):
-    """Search jobs on Dice website using filters."""
-    url = f"https://www.dice.com/jobs?q={keyword}&location={location}&radius=30&radiusUnit=mi&page=1&pageSize=20&filters.postedDate=THREE&filters.easyApply=true&language=en"
-    logging.info(f"Navigating to URL: {url}")
-    driver.get(url)
-    wait_for_element(driver, By.CSS_SELECTOR, "a.card-title-link", timeout=10)  # Wait for jobs to load
 
-def apply_to_jobs(driver, data):
-    """Apply to jobs on the current page and handle pagination."""
+def search_jobs(driver: WebDriver, keyword: str, location: str) -> None:
+    """Search jobs on Dice using the provided filters."""
+    url = (
+        "https://www.dice.com/jobs"
+        f"?q={keyword}&location={location}&radius=30&radiusUnit=mi"
+        "&page=1&pageSize=20&filters.postedDate=THREE&filters.easyApply=true&language=en"
+    )
+    log.info("Navigating to %s", url)
+    driver.get(url)
+    _wait(driver, By.CSS_SELECTOR, "a.card-title-link", timeout=15)
+
+
+def apply_to_jobs(driver: WebDriver, data: dict[str, Any], *, dry_run: bool = False) -> None:
+    """Apply to every matching job on the current page, then paginate."""
     while True:
         jobs = driver.find_elements(By.CSS_SELECTOR, "a.card-title-link")
-        logging.info(f"Found {len(jobs)} job(s) to apply for on this page.")
+        log.info("Found %d job(s) on this page.", len(jobs))
 
         for job in jobs:
             try:
                 job.click()
-                time.sleep(2)  # Short delay to allow the page to load
-
-                # Switch to the newly opened job window
+                time.sleep(2)
                 driver.switch_to.window(driver.window_handles[-1])
 
-                # Check if "Easy Apply" button is available
-                if is_easy_apply_available(driver):
-                    # Click the "Easy Apply" button
-                    logging.info("Waiting for 'Easy Apply' button.")
-                    apply_button = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, "apply-button-wc"))
-                    )
-                    apply_button.click()
-                    logging.info("Clicked 'Easy Apply' button.")
-                    time.sleep(2)  # Short sleep to ensure click is registered
+                if not _is_easy_apply_available(driver):
+                    log.info("Skipping — already applied or Easy Apply unavailable.")
+                    continue
 
-                    # Navigate through the form and submit the application
-                    navigate_form_and_submit(driver, data)
-                else:
-                    logging.info("Job already applied or 'Easy Apply' not available. Skipping this job.")
+                if dry_run:
+                    log.info("[dry-run] would click Easy Apply.")
+                    continue
 
-            except Exception as e:
-                logging.error(f"Error applying to job: {e}")
+                log.info("Clicking Easy Apply.")
+                _click(driver, By.CSS_SELECTOR, "apply-button-wc", timeout=10)
+                time.sleep(2)
+                _navigate_form_and_submit(driver, data)
 
+            except Exception as exc:  # noqa: BLE001
+                log.error("Error applying to job: %s", exc)
             finally:
-                # Close the job tab and switch back to the job list (main window)
                 if len(driver.window_handles) > 1:
-                    driver.close()  # Close the current job tab
-                    driver.switch_to.window(driver.window_handles[0])  # Switch back to the original tab
+                    driver.close()
+                    driver.switch_to.window(driver.window_handles[0])
 
-        # Move to the next page if available
-        if not go_to_next_page(driver):
-            logging.info("No more pages left. Exiting.")
+        if not _go_to_next_page(driver):
+            log.info("No more pages — done.")
             break
 
-def is_easy_apply_available(driver):
-    """Check if the 'Easy Apply' button is available to determine if the job is already applied."""
+
+def _is_easy_apply_available(driver: WebDriver) -> bool:
     try:
-        # Check for "Easy Apply" button
-        apply_button = driver.find_element(By.CSS_SELECTOR, "apply-button-wc")
-        if apply_button:
-            logging.info("'Easy Apply' button found, proceeding with application.")
+        if driver.find_element(By.CSS_SELECTOR, "apply-button-wc"):
             return True
     except NoSuchElementException:
-        logging.info("'Easy Apply' button not found. Job likely already applied.")
+        pass
     return False
 
-def navigate_form_and_submit(driver, data):
-    """Navigate through the form pages by filling textareas and choosing options using AI-generated answers based on the corresponding questions."""
-    try:
-        while True:
+
+def _navigate_form_and_submit(driver: WebDriver, data: dict[str, Any]) -> None:
+    """Fill textareas + radio groups, click Next/Submit until the form completes."""
+    while True:
+        try:
+            _fill_textareas(driver, data)
+            _fill_radio_groups(driver, data)
+
             try:
-                # Find all textarea elements on the current page
-                textareas = driver.find_elements(By.TAG_NAME, "textarea")
-                if textareas:
-                    logging.info(f"Found {len(textareas)} textarea(s). Processing each one.")
-                    for textarea in textareas:
-                        try:
-                            textarea_id = textarea.get_attribute("id")
-                            if not textarea_id:
-                                continue
-
-                            label = driver.find_element(By.XPATH, f"//label[@for='{textarea_id}']")
-                            question_text = label.text.strip()
-
-                            logging.info(f"Question found: '{question_text}'")
-                            answer = get_openai_response(question_text, data)
-                            textarea.clear()
-                            textarea.send_keys(answer)
-
-                        except NoSuchElementException:
-                            continue
-                        except Exception as e:
-                            logging.error(f"Error processing textarea: {e}")
-                else:
-                    logging.info("No textarea elements found on this page.")
-
-                # Process radio button groups
-                radio_groups = driver.find_elements(By.CLASS_NAME, "radio-input-wrapper")
-                if radio_groups:
-                    logging.info(f"Found {len(radio_groups)} radio group(s). Processing each one.")
-                    for group in radio_groups:
-                        try:
-                            # Extract the question text and the options
-                            question_element = group.find_element(By.TAG_NAME, "seds-paragraph")
-                            question_text = question_element.text.strip()
-                            logging.info(f"Radio button question found: '{question_text}'")
-
-                            radio_options = group.find_elements(By.TAG_NAME, "label")
-                            options = [option.text.strip() for option in radio_options]
-
-                            # Send question and options to OpenAI for selecting the best choice
-                            ai_response = get_openai_response(question_text, data, options)
-                            logging.info(f"AI suggests selecting: '{ai_response}'")
-
-                            # Select the matching radio button
-                            for option in radio_options:
-                                option_text = option.text.strip()
-                                if ai_response.lower() in option_text.lower():
-                                    radio_input = option.find_element(By.TAG_NAME, "input")
-                                    radio_input.click()
-                                    logging.info(f"Selected radio option: '{option_text}'")
-                                    break
-
-                        except NoSuchElementException:
-                            continue
-                        except Exception as e:
-                            logging.error(f"Error processing radio group: {e}")
-                else:
-                    logging.info("No radio button groups found on this page.")
-
-                # Click "Next" or "Submit" buttons
+                _click(
+                    driver,
+                    By.XPATH,
+                    "//span[contains(text(),'Next')] "
+                    "| //button[contains(text(),'Next')] "
+                    "| //button[contains(text(),'Continue')]",
+                    timeout=8,
+                )
+                time.sleep(2)
+            except TimeoutException:
                 try:
-                    next_button = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((
-                            By.XPATH, 
-                            "//span[contains(text(), 'Next')] | //button[contains(text(), 'Next')] | //button[contains(text(), 'Continue')]"
-                        ))
+                    _click(
+                        driver,
+                        By.XPATH,
+                        "//button[contains(@class,'btn-next') "
+                        "and .//span[contains(text(),'Submit')]]",
+                        timeout=8,
                     )
-                    next_button.click()
-                    time.sleep(2)
+                    log.info("Application submitted.")
+                    return
                 except TimeoutException:
-                    try:
-                        submit_button = WebDriverWait(driver, 10).until(
-                            EC.element_to_be_clickable((
-                                By.XPATH, "//button[contains(@class, 'btn-next') and .//span[contains(text(), 'Submit')]]"
-                            ))
-                        )
-                        submit_button.click()
-                        logging.info("Application submitted successfully.")
-                        break
-                    except TimeoutException:
-                        logging.error("Could not find 'Submit' button. Exiting form process.")
-                        break
+                    log.error("Could not find Next/Submit button — exiting form.")
+                    return
+        except Exception as exc:  # noqa: BLE001
+            log.error("Error navigating form: %s", exc)
+            return
 
-            except Exception as e:
-                logging.error(f"Error navigating form or submitting the application: {e}")
-                break
 
-    except Exception as e:
-        logging.error(f"Unexpected error during form navigation: {e}")
-def go_to_next_page(driver):
-    """Navigate to the next page of job listings if available."""
+def _fill_textareas(driver: WebDriver, data: dict[str, Any]) -> None:
+    textareas = driver.find_elements(By.TAG_NAME, "textarea")
+    if not textareas:
+        return
+    log.info("Processing %d textarea(s).", len(textareas))
+    for textarea in textareas:
+        try:
+            textarea_id = textarea.get_attribute("id")
+            if not textarea_id:
+                continue
+            label = driver.find_element(By.XPATH, f"//label[@for='{textarea_id}']")
+            question = label.text.strip()
+            log.info("Textarea question: %r", question)
+            answer = get_openai_response(question, data)
+            textarea.clear()
+            textarea.send_keys(answer)
+        except NoSuchElementException:
+            continue
+        except Exception as exc:  # noqa: BLE001
+            log.error("Textarea error: %s", exc)
+
+
+def _fill_radio_groups(driver: WebDriver, data: dict[str, Any]) -> None:
+    groups = driver.find_elements(By.CLASS_NAME, "radio-input-wrapper")
+    if not groups:
+        return
+    log.info("Processing %d radio group(s).", len(groups))
+    for group in groups:
+        try:
+            question = group.find_element(By.TAG_NAME, "seds-paragraph").text.strip()
+            log.info("Radio question: %r", question)
+            radio_options = group.find_elements(By.TAG_NAME, "label")
+            options = [o.text.strip() for o in radio_options]
+            ai_response = get_openai_response(question, data, options)
+            log.info("AI picks: %r", ai_response)
+            for option in radio_options:
+                if ai_response.lower() in option.text.strip().lower():
+                    option.find_element(By.TAG_NAME, "input").click()
+                    log.info("Selected %r", option.text.strip())
+                    break
+        except NoSuchElementException:
+            continue
+        except Exception as exc:  # noqa: BLE001
+            log.error("Radio error: %s", exc)
+
+
+def _go_to_next_page(driver: WebDriver) -> bool:
     try:
-        next_button = driver.find_element(By.XPATH, "//li[contains(@class, 'pagination-next') and not(contains(@class, 'disabled'))]//a")
+        next_button = driver.find_element(
+            By.XPATH,
+            "//li[contains(@class,'pagination-next') and not(contains(@class,'disabled'))]//a",
+        )
         next_button.click()
-        time.sleep(3)  # Allow the next page to load
-        logging.info("Moved to the next page.")
+        time.sleep(3)
+        log.info("Moved to next page.")
         return True
     except NoSuchElementException:
-        logging.info("No 'Next' button found or last page reached.")
-    except Exception as e:
-        logging.error(f"Error navigating to the next page: {e}")
+        log.info("No next page.")
+    except Exception as exc:  # noqa: BLE001
+        log.error("Pagination error: %s", exc)
     return False
