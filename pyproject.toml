@@ -1,0 +1,63 @@
+[project]
+name = "dice-jobs-ai-automation"
+version = "0.2.0"
+description = "Selenium bot that auto-applies to matching jobs on Dice.com and skips duplicates."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [{ name = "svrohith9" }]
+keywords = ["selenium", "automation", "dice", "jobs", "ai"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+]
+
+dependencies = [
+    "selenium>=4.25,<5",
+    "webdriver-manager>=4.0,<5",
+    "openai>=1.55,<2",
+    "pyyaml>=6.0,<7",
+    "rich>=13.9,<15",
+    "python-dotenv>=1.0,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.7,<1",
+]
+
+[project.scripts]
+dice-apply = "src.app:main"
+
+[project.urls]
+Homepage = "https://github.com/svrohith9/dice_jobs_ai_automation"
+Issues = "https://github.com/svrohith9/dice_jobs_ai_automation/issues"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # bugbear
+    "SIM", # simplify
+    "RET", # return
+]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.ruff.format]
+quote-style = "double"
